@@ -11,7 +11,7 @@ const Navbar = () => {
     if (role === 'jobseeker') {
       navigate('/login');
     } else if (role === 'employee') {
-      navigate('/login');
+      navigate('/loginemp');
     }
     setDropdownVisible(false);
   };

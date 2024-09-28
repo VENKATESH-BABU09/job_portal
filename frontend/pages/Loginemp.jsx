@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
-const Login = () => {
+const Loginemp = () => {
   const [isRegister, setIsRegister] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -22,14 +22,14 @@ const Login = () => {
         }
 
         // Registration logic
-        const response = await axios.post('http://localhost:4000/user/register', { username, password });
+        const response = await axios.post('http://localhost:4000/employer/register', { username, password });
         if (response.status === 201) {
           alert('User registered successfully!');
           setIsRegister(false); // Redirect to login after successful registration
         }
       } else {
         // Login logic
-        const response = await axios.post('http://localhost:4000/user/login', { username, password });
+        const response = await axios.post('http://localhost:4000/employer/login', { username, password });
         if (response.status === 200) {
           localStorage.setItem('token', response.data.token); // Store JWT token
           alert('Login successful!');
@@ -114,4 +114,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default Loginemp;
