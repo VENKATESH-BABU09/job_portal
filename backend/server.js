@@ -32,6 +32,24 @@ app.get("/", (req, res) => {
   res.send("Hello World");
 });
 
+const authenticateEmployer = (req, res, next) => {
+  const token = req.headers['authorization']?.split(' ')[1]; // Bearer <token>
+
+  if (!token) {
+    return res.status(401).json({ message: 'Access denied. No token provided.' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.username = decoded.username;
+    // console.log(req.username);// Store the employer's username for future use
+    next(); // Pass control to the next middleware or route handler
+  } catch (error) {
+    return res.status(400).json({ message: 'Invalid token.' });
+  }
+};
+
+
 app.get("/users", async (req, res) => {
   const { email, role } = req.query;
 
@@ -370,16 +388,14 @@ app.get("/jobs", async (req, res) => {
 
 // POST - Create a new job
 app.post(
-  "/jobs",
+  '/jobs',
+  authenticateEmployer, // Ensure this middleware runs before the validation
   [
-    check("title").notEmpty().withMessage("Job title is required"),
-    check("description").notEmpty().withMessage("Job description is required"),
-    check("location").notEmpty().withMessage("Location is required"),
-    check("salary").isNumeric().withMessage("Salary must be a number"),
-    check("type").notEmpty().withMessage("Job type is required"),
-    check("employer")
-      .isMongoId()
-      .withMessage("Employer ID must be a valid MongoDB ID"),
+    check('title').notEmpty().withMessage('Job title is required'),
+    check('description').notEmpty().withMessage('Job description is required'),
+    check('location').notEmpty().withMessage('Location is required'),
+    check('salary').isNumeric().withMessage('Salary must be a number'),
+    check('type').notEmpty().withMessage('Job type is required'),
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -388,22 +404,23 @@ app.post(
     }
 
     try {
-      const { title, description, location, salary, type, employer } = req.body;
+      const { title, description, location, salary, type } = req.body;
       const job = new Job({
         title,
         description,
         location,
         salary,
         type,
-        employer,
+        employer: req.username, // Use the employer's username from the token
       });
       await job.save();
       res.status(201).json(job);
     } catch (err) {
-      res.status(500).json({ message: "Server Error", error: err });
+      res.status(500).json({ message: 'Server Error', error: err });
     }
   }
 );
+
 
 app.patch("/jobs/:id", async (req, res) => {
   try {
@@ -612,3 +629,9 @@ function authenticateToken(req, res, next) {
 app.post("/dashboard", authenticateToken, (req, res) => {
   res.send(`Welcome, ${req.body.name}!`);
 });
+
+
+
+
+
+

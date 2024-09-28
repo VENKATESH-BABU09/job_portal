@@ -5,6 +5,7 @@ import Signup from "../pages/Signup";
 import HomePage from "../pages/HomePage";
 import Footer from "../components/Footer";
 import Loginemp from "../pages/Loginemp";
+import PostJob from "../pages/PostJob";
 import {BrowserRouter, Routes, Route} from "react-router-dom";
 import Navbar from "../components/Navbar";
 
@@ -19,6 +20,7 @@ export default function App() {
           <Route path="/loginemp" element={<Loginemp />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/PostJob" element={<PostJob />} />
           <Route path="/recruiterProfile" element={<RecruiterProfile />} />
         </Routes>
         <Footer/>
