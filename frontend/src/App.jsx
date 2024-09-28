@@ -19,7 +19,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/loginemp" element={<Loginemp />} />
           <Route path="/signup" element={<Signup />} />
-          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/user/profile" element={<ProfilePage />} />
           <Route path="/PostJob" element={<PostJob />} />
           <Route path="/recruiterProfile" element={<RecruiterProfile />} />
         </Routes>
