@@ -44,7 +44,7 @@ const Login = () => {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
       <div className="bg-white bg-opacity-80 backdrop-blur-sm text-gray-800 rounded-lg shadow-lg p-8 w-full max-w-md transition-transform transform hover:scale-105">
-        <h2 className="text-2xl font-bold text-center mb-6">{isRegister ? 'Register' : 'Login'}</h2>
+        <h2 className="text-2xl font-bold text-center mb-6">{isRegister ? 'Register' : 'Job Seeker Login'}</h2>
 
         {error && <p className="text-red-500 text-center">{error}</p>}
 

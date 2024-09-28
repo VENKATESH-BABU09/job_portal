@@ -396,6 +396,7 @@ app.post(
     check('location').notEmpty().withMessage('Location is required'),
     check('salary').isNumeric().withMessage('Salary must be a number'),
     check('type').notEmpty().withMessage('Job type is required'),
+    check('companyName').notEmpty().withMessage('Company name is required'), // Validation for companyName
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -404,13 +405,14 @@ app.post(
     }
 
     try {
-      const { title, description, location, salary, type } = req.body;
+      const { title, description, location, salary, type, companyName } = req.body; // Extract companyName
       const job = new Job({
         title,
         description,
         location,
         salary,
         type,
+        companyName, // Add companyName to the job document
         employer: req.username, // Use the employer's username from the token
       });
       await job.save();
@@ -420,6 +422,7 @@ app.post(
     }
   }
 );
+
 
 
 app.patch("/jobs/:id", async (req, res) => {

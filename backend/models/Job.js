@@ -7,6 +7,7 @@ const jobSchema = new mongoose.Schema({
   salary: { type: Number, required: true, min: 0 }, // Ensure salary is non-negative
   type: { type: String, required: true, enum: ['Full-time', 'Part-time', 'Contract', 'Internship'] }, // Limit job types
   employer: { type: String, required: true, trim: true }, // Store employer's username instead of _id
+  companyName: { type: String, required: true, trim: true }, // New field for company name
   applicants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'JobSeeker' }],
   approved: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
