@@ -1,38 +1,78 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcrypt');
 
-
+// Define the User schema
 const userSchema = new mongoose.Schema({
-  username: { // Change from name to username
+  username: {
     type: String,
     required: true,
-    unique: true,  // Username must be unique
-  },
-  email: {
-    type: String,
-    lowercase: true, 
+    unique: true,
   },
   password: {
     type: String,
     required: true,
   },
-  role: {
-    type: String
+  email: {
+    type: String,
+    lowercase: true,
   },
-  profile: {
-    bio: {
-      type: String,
-    },
-    skills: {
-      type: [String],
-    },
-    resume: {
-      type: String,
-    },
+  highestEducation: {
+    type: String,
+    enum: ["High School", "Diploma", "Degree", "Post-Graduate"],
+    default: null,
   },
-}, {
-  timestamps: true,
-});
+  degreeType: {
+    type: String,
+    enum: ["B.E", "B.Tech", "B.Sc", "B.Com"],
+    default: null,
+  },
+  stream: {
+    type: String,
+    enum: [
+      "Computer Science",
+      "Electronics",
+      "Mechanical Engineering",
+      "Civil Engineering",
+    ],
+    default: null,
+  },
+  currentStatus: {
+    type: String,
+    enum: ["Student", "Graduate", "Working Professional"],
+    default: null,
+  },
+  location: {
+    type: String,
+    default: null,
+  },
+  skills: {
+    type: String,
+    default: null,
+  },
+  experience: {
+    type: Number,
+    min: 0,
+    default: 0,
+  },
+  resume: {
+    type: String, // You might want to store the path to the uploaded resume file
+    default: null,
+  },
+  profilePicture: {
+    type: String, // You might want to store the path to the uploaded profile picture file
+    default: null,
+  },
+}, { timestamps: true }); // Automatically create createdAt and updatedAt fields
+
+
+userSchema.methods.comparePassword = async function (candidatePassword) {
+  return bcrypt.compare(candidatePassword, this.password);
+};
+
+// Create the User model
+const User = mongoose.model('User', userSchema);
+
+module.exports = User;
+
 
 
 // userSchema.pre('save', async function (next) {
@@ -47,10 +87,3 @@ const userSchema = new mongoose.Schema({
 //   }
 // });
 
-userSchema.methods.comparePassword = async function (candidatePassword) {
-  return bcrypt.compare(candidatePassword, this.password);
-};
-
-const User = mongoose.model('User', userSchema);
-
-module.exports = User;

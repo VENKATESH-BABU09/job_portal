@@ -3,6 +3,8 @@ const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const path = require("path");
+const fs = require('fs');
+// const path = require('path');
 require("dotenv").config();
 const {
   body,
@@ -13,6 +15,7 @@ const {
 } = require("express-validator");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const multer = require('multer');
 
 const User = require("./models/User");
 const Employer = require("./models/Employer");
@@ -43,6 +46,23 @@ const authenticateEmployer = (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.username = decoded.username;
     // console.log(req.username);// Store the employer's username for future use
+    next(); // Pass control to the next middleware or route handler
+  } catch (error) {
+    return res.status(400).json({ message: 'Invalid token.' });
+  }
+};
+
+
+const authenticateUser = (req, res, next) => {
+  const token = req.headers['authorization']?.split(' ')[1]; // Bearer <token>
+
+  if (!token) {
+    return res.status(401).json({ message: 'Access denied. No token provided.' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.username = decoded.username; // Store the user's username for future use
     next(); // Pass control to the next middleware or route handler
   } catch (error) {
     return res.status(400).json({ message: 'Invalid token.' });
@@ -104,6 +124,56 @@ app.post("/users", async (req, res) => {
   } catch (error) {
     console.error("Error adding user:", error);
     return res.status(500).send({ message: "Error creating user" });
+  }
+});
+
+
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Set up multer for file storage
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir); // Specify the uploads directory
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + '-' + file.originalname); // Create unique filename
+  },
+});
+
+const upload = multer({ storage: storage });
+
+app.patch('/profile/update', authenticateUser, upload.fields([{ name: 'profilePicture' }, { name: 'resume' }]), async (req, res) => {
+  try {
+    const username = req.username; // Use username from the request
+    const updateData = req.body; // This will contain the form data
+
+    // Handle file uploads separately if using multer or similar
+    if (req.files) {
+      if (req.files.profilePicture) {
+        updateData.profilePicture = req.files.profilePicture[0].filename; // Save filename or path
+      }
+      if (req.files.resume) {
+        updateData.resume = req.files.resume[0].filename; // Save filename or path
+      }
+    }
+
+    // Find user by username and update their details
+    const updatedUser = await User.findOneAndUpdate({ username }, updateData, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!updatedUser) {
+      return res.status(404).send('User not found');
+    }
+
+    res.status(200).json(updatedUser);
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).send('Server error');
   }
 });
 
@@ -628,6 +698,31 @@ function authenticateToken(req, res, next) {
     next();
   });
 }
+
+
+
+// Assuming you have a User model with fields like username and email
+app.get('/user/profile', async (req, res) => {
+  try {
+    const token = req.headers.authorization.split(' ')[1]; // Bearer <token>
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findOne({ username: decoded.username });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.status(200).json({
+      username: user.username,
+      // email: user.email,
+      // Add more user details if needed
+    });
+  } catch (error) {
+    console.error("Error fetching user profile:", error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 
 app.post("/dashboard", authenticateToken, (req, res) => {
   res.send(`Welcome, ${req.body.name}!`);
