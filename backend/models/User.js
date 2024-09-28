@@ -3,13 +3,14 @@ const bcrypt = require('bcrypt');
 
 
 const userSchema = new mongoose.Schema({
-  name: {
+  username: { // Change from name to username
     type: String,
     required: true,
+    unique: true,  // Username must be unique
   },
   email: {
     type: String,
-    required: true,
+    // required: true,
     unique: true, 
     lowercase: true, 
   },
@@ -18,9 +19,7 @@ const userSchema = new mongoose.Schema({
     required: true,
   },
   role: {
-    type: String,
-    required: true,
-    enum: ['jobseeker'],
+    type: String
   },
   profile: {
     bio: {
@@ -53,7 +52,6 @@ userSchema.pre('save', async function (next) {
 userSchema.methods.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
-
 
 const User = mongoose.model('User', userSchema);
 
