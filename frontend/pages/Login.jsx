@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom'; // For redirection after login
+import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
   const [isRegister, setIsRegister] = useState(false);
@@ -31,12 +31,13 @@ const Login = () => {
         // Login logic
         const response = await axios.post('http://localhost:4000/login', { username, password });
         if (response.status === 200) {
+          localStorage.setItem('token', response.data.token); // Store JWT token
           alert('Login successful!');
-          navigate('/'); // Redirect to HomePage after successful login
+          navigate('/'); // Redirect to a protected route
         }
       }
     } catch (error) {
-      setError(error.response.data.message || 'Something went wrong!');
+      setError(error.response?.data.message || 'Something went wrong!');
     }
   };
 
@@ -88,14 +89,6 @@ const Login = () => {
               />
             </div>
           )}
-
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <input type="checkbox" id="remember" className="mr-2" />
-              <label htmlFor="remember" className="text-sm">Remember me</label>
-            </div>
-            <a href="#" className="text-sm text-gray-600 hover:underline">Forgot Password?</a>
-          </div>
 
           <button
             type="submit"
