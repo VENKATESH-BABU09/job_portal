@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+// import axios from 'axios';
+
+import {api} from "../api/api.js";
 
 const PostJob = () => {
   const [title, setTitle] = useState('');
@@ -21,7 +23,7 @@ const PostJob = () => {
 
     try {
       const token = localStorage.getItem('token'); // Get token from localStorage
-      const response = await axios.post('http://localhost:4000/jobs', 
+      const response = await api.post('/jobs', 
         { title, description, location, salary, type, companyName }, // Include companyName
         {
           headers: { Authorization: `Bearer ${token}` } // Include token in the request

@@ -33,7 +33,7 @@ const Loginemp = () => {
         if (response.status === 200) {
           localStorage.setItem('token', response.data.token); // Store JWT token
           alert('Login successful!');
-          navigate('/'); // Redirect to a protected route
+          navigate('/home'); // Redirect to a protected route
         }
       }
     } catch (error) {

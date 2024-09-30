@@ -3,8 +3,10 @@ const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const path = require("path");
-const fs = require('fs');
+const fs = require("fs");
+const cookieParser = require("cookie-parser");
 // const path = require('path');
+
 require("dotenv").config();
 const {
   body,
@@ -15,15 +17,22 @@ const {
 } = require("express-validator");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const multer = require('multer');
+const multer = require("multer");
 
 const User = require("./models/User");
 const Employer = require("./models/Employer");
 const Job = require("./models/Job");
 
 const app = express();
-app.use(cors());
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+    exposedHeaders: ["set-cookie"],
+  })
+);
 app.use(express.json());
+app.use(cookieParser());
 
 mongoose.connect(process.env.MONGO_URL).then(() => {
   console.log("MongoDB connected");
@@ -31,15 +40,36 @@ mongoose.connect(process.env.MONGO_URL).then(() => {
     console.log("Server is running");
   });
 });
-app.get("/", (req, res) => {
-  res.send("Hello World");
-});
+
+// const requireAuth = (req, res, next) => {
+//   const token = req.cookies.auth_token;
+//   console.log("Token:", token);
+
+//   if (token) {
+//     jwt.verify(token, process.env.JWT_SECRET, (err, decodedToken) => {
+//       if (err) {
+//         console.log(err);
+//         res.status(401).json({ message: "Invalid token" });
+//       } else {
+//         next();
+//       }
+//     });
+//   } else {
+//     res.status(400).json({ message: "Errors" });
+//   }
+// };
 
 const authenticateEmployer = (req, res, next) => {
-  const token = req.headers['authorization']?.split(' ')[1]; // Bearer <token>
+  // const newToken = req.cookies.auth_token;
+  // console.log(newToken);
+  // console.log(req.headers["authorization"]);
+  const token = req.headers["authorization"]; // Bearer <token>
+  // console.log(token);
 
   if (!token) {
-    return res.status(401).json({ message: 'Access denied. No token provided.' });
+    return res
+      .status(401)
+      .json({ message: "Access denied. No token provided." });
   }
 
   try {
@@ -48,16 +78,17 @@ const authenticateEmployer = (req, res, next) => {
     // console.log(req.username);// Store the employer's username for future use
     next(); // Pass control to the next middleware or route handler
   } catch (error) {
-    return res.status(400).json({ message: 'Invalid token.' });
+    return res.status(400).json({ message: "Invalid token." });
   }
 };
 
-
 const authenticateUser = (req, res, next) => {
-  const token = req.headers['authorization']?.split(' ')[1]; // Bearer <token>
+  const token = req.headers["authorization"]?.split(" ")[1]; // Bearer <token>
 
   if (!token) {
-    return res.status(401).json({ message: 'Access denied. No token provided.' });
+    return res
+      .status(401)
+      .json({ message: "Access denied. No token provided." });
   }
 
   try {
@@ -65,10 +96,17 @@ const authenticateUser = (req, res, next) => {
     req.username = decoded.username; // Store the user's username for future use
     next(); // Pass control to the next middleware or route handler
   } catch (error) {
-    return res.status(400).json({ message: 'Invalid token.' });
+    return res.status(400).json({ message: "Invalid token." });
   }
 };
 
+app.get("/", authenticateEmployer, (req, res) => {
+  // console.log("verified");
+  const token = req.headers["authorization"];
+  const roles = jwt.decode(token).role;
+  // console.log(roles);
+  res.status(200).send({ isValid: true, role: roles });
+});
 
 app.get("/users", async (req, res) => {
   const { email, role } = req.query;
@@ -127,8 +165,7 @@ app.post("/users", async (req, res) => {
   }
 });
 
-
-const uploadsDir = path.join(__dirname, 'uploads');
+const uploadsDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
@@ -139,45 +176,52 @@ const storage = multer.diskStorage({
     cb(null, uploadsDir); // Specify the uploads directory
   },
   filename: (req, file, cb) => {
-    cb(null, Date.now() + '-' + file.originalname); // Create unique filename
+    cb(null, Date.now() + "-" + file.originalname); // Create unique filename
   },
 });
 
 const upload = multer({ storage: storage });
 
-app.patch('/profile/update', authenticateUser, upload.fields([{ name: 'profilePicture' }, { name: 'resume' }]), async (req, res) => {
-  try {
-    const username = req.username; // Use username from the request
-    const updateData = req.body; // This will contain the form data
+app.patch(
+  "/profile/update",
+  authenticateUser,
+  upload.fields([{ name: "profilePicture" }, { name: "resume" }]),
+  async (req, res) => {
+    try {
+      const username = req.username; // Use username from the request
+      const updateData = req.body; // This will contain the form data
 
-    // Handle file uploads separately if using multer or similar
-    if (req.files) {
-      if (req.files.profilePicture) {
-        updateData.profilePicture = req.files.profilePicture[0].filename; // Save filename or path
+      // Handle file uploads separately if using multer or similar
+      if (req.files) {
+        if (req.files.profilePicture) {
+          updateData.profilePicture = req.files.profilePicture[0].filename; // Save filename or path
+        }
+        if (req.files.resume) {
+          updateData.resume = req.files.resume[0].filename; // Save filename or path
+        }
       }
-      if (req.files.resume) {
-        updateData.resume = req.files.resume[0].filename; // Save filename or path
+
+      // Find user by username and update their details
+      const updatedUser = await User.findOneAndUpdate(
+        { username },
+        updateData,
+        {
+          new: true,
+          runValidators: true,
+        }
+      );
+
+      if (!updatedUser) {
+        return res.status(404).send("User not found");
       }
+
+      res.status(200).json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user:", error);
+      res.status(500).send("Server error");
     }
-
-    // Find user by username and update their details
-    const updatedUser = await User.findOneAndUpdate({ username }, updateData, {
-      new: true,
-      runValidators: true,
-    });
-
-    if (!updatedUser) {
-      return res.status(404).send('User not found');
-    }
-
-    res.status(200).json(updatedUser);
-  } catch (error) {
-    console.error('Error updating user:', error);
-    res.status(500).send('Server error');
   }
-});
-
-
+);
 
 app.patch("/users/:id", async (req, res) => {
   const userId = req.params.id;
@@ -458,15 +502,15 @@ app.get("/jobs", async (req, res) => {
 
 // POST - Create a new job
 app.post(
-  '/jobs',
+  "/jobs",
   authenticateEmployer, // Ensure this middleware runs before the validation
   [
-    check('title').notEmpty().withMessage('Job title is required'),
-    check('description').notEmpty().withMessage('Job description is required'),
-    check('location').notEmpty().withMessage('Location is required'),
-    check('salary').isNumeric().withMessage('Salary must be a number'),
-    check('type').notEmpty().withMessage('Job type is required'),
-    check('companyName').notEmpty().withMessage('Company name is required'), // Validation for companyName
+    check("title").notEmpty().withMessage("Job title is required"),
+    check("description").notEmpty().withMessage("Job description is required"),
+    check("location").notEmpty().withMessage("Location is required"),
+    check("salary").isNumeric().withMessage("Salary must be a number"),
+    check("type").notEmpty().withMessage("Job type is required"),
+    check("companyName").notEmpty().withMessage("Company name is required"), // Validation for companyName
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -475,7 +519,8 @@ app.post(
     }
 
     try {
-      const { title, description, location, salary, type, companyName } = req.body; // Extract companyName
+      const { title, description, location, salary, type, companyName } =
+        req.body; // Extract companyName
       const job = new Job({
         title,
         description,
@@ -488,12 +533,10 @@ app.post(
       await job.save();
       res.status(201).json(job);
     } catch (err) {
-      res.status(500).json({ message: 'Server Error', error: err });
+      res.status(500).json({ message: "Server Error", error: err });
     }
   }
 );
-
-
 
 app.patch("/jobs/:id", async (req, res) => {
   try {
@@ -596,92 +639,103 @@ app.post("/jobs/:id/apply", async (req, res) => {
   }
 });
 
-app.post('/user/register', async (req, res) => {
+app.post("/user/register", async (req, res) => {
   const { username, password } = req.body;
   try {
     const existingUser = await User.findOne({ username });
     if (existingUser) {
-      return res.status(400).json({ message: 'Username already exists' });
+      return res.status(400).json({ message: "Username already exists" });
     }
-    
+
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = new User({ username, password: hashedPassword });
     await newUser.save();
-    
-    res.status(201).json({ message: 'User registered successfully' });
+
+    res.status(201).json({ message: "User registered successfully" });
   } catch (err) {
     console.error(err); // Add logging for debugging
-    res.status(500).json({ message: 'Server error', error: err.message });
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 });
 
 // Login Route
-app.post('/user/login', async (req, res) => {
+app.post("/user/login", async (req, res) => {
   const { username, password } = req.body;
   try {
     const user = await User.findOne({ username });
     if (!user) {
-      return res.status(400).json({ message: 'Invalid username or password' });
+      return res.status(400).json({ message: "Invalid username or password" });
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(400).json({ message: 'Invalid username or password' });
+      return res.status(400).json({ message: "Invalid username or password" });
     }
 
     // Generate JWT Token
-    const token = jwt.sign({ username: user.username }, process.env.JWT_SECRET, { expiresIn: '1h' });
-    res.status(200).json({ message: 'Login successful', token });
+    const token = jwt.sign(
+      { username: user.username },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+    res.status(200).json({ message: "Login successful", token });
   } catch (err) {
     console.error(err); // Add logging for debugging
-    res.status(500).json({ message: 'Server error', error: err.message });
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 });
 
-
-
-
 //employer register and login
 
-app.post('/employer/register', async (req, res) => {
+app.post("/employer/register", async (req, res) => {
   const { username, password } = req.body;
   try {
     const existingUser = await User.findOne({ username });
     if (existingUser) {
-      return res.status(400).json({ message: 'Username already exists' });
+      return res.status(400).json({ message: "Username already exists" });
     }
-    
+
     const hashedPassword = await bcrypt.hash(password, 10);
     const newEmployer = new Employer({ username, password: hashedPassword });
     await newEmployer.save();
-    
-    res.status(201).json({ message: 'Employer registered successfully' });
+
+    res.status(201).json({ message: "Employer registered successfully" });
   } catch (err) {
     console.error(err); // Add logging for debugging
-    res.status(500).json({ message: 'Server error', error: err.message });
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 });
 
 // Login Route
-app.post('/employer/login', async (req, res) => {
+app.post("/employer/login", async (req, res) => {
   const { username, password } = req.body;
   try {
     const user = await Employer.findOne({ username });
     if (!user) {
-      return res.status(400).json({ message: 'Invalid username or password' });
+      return res.status(400).json({ message: "Invalid username or password" });
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(400).json({ message: 'Invalid username or password' });
+      return res.status(400).json({ message: "Invalid username or password" });
     }
 
     // Generate JWT Token
-    const token = jwt.sign({ username: user.username }, process.env.JWT_SECRET, { expiresIn: '1h' });
-    res.status(200).json({ message: 'Login successful', token });
+    const token = jwt.sign(
+      { username: user.username, role: "employer" },
+      process.env.JWT_SECRET,
+      { expiresIn: "3 days" }
+    );
+    res.cookie("auth_token", token, {
+      maxAge: 3 * 24 * 60 * 60 * 1000,
+      httpOnly: true,
+      sameSite: "none",
+      secure: true,
+    });
+    res.status(200).json({ message: "Login successful", token });
   } catch (err) {
     console.error(err); // Add logging for debugging
-    res.status(500).json({ message: 'Server error', error: err.message });
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 });
 
@@ -699,17 +753,15 @@ function authenticateToken(req, res, next) {
   });
 }
 
-
-
 // Assuming you have a User model with fields like username and email
-app.get('/user/profile', async (req, res) => {
+app.get("/user/profile", async (req, res) => {
   try {
-    const token = req.headers.authorization.split(' ')[1]; // Bearer <token>
+    const token = req.headers.authorization.split(" ")[1]; // Bearer <token>
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findOne({ username: decoded.username });
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: "User not found" });
     }
 
     res.status(200).json({
@@ -719,17 +771,10 @@ app.get('/user/profile', async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching user profile:", error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: "Server error" });
   }
 });
-
 
 app.post("/dashboard", authenticateToken, (req, res) => {
   res.send(`Welcome, ${req.body.name}!`);
 });
-
-
-
-
-
-
