@@ -483,20 +483,21 @@ app.delete(
 
 app.get("/jobs", async (req, res) => {
   try {
-    const { location, type } = req.query;
-
+    const { position, location, type } = req.query;
     const filter = {};
+    if (position) {
+      filter.title = { $regex: new RegExp(position, 'i') };
+    }
     if (location) {
-      filter.location = location;
+      filter.location = { $regex: new RegExp(location, 'i') };
     }
     if (type) {
       filter.type = type;
     }
-
     const jobs = await Job.find(filter).populate("employer");
     res.status(200).json(jobs);
   } catch (err) {
-    res.status(500).json({ message: "Server Error", error: err });
+    res.status(500).json({ message: "Server Error", error: err.message });
   }
 });
 
