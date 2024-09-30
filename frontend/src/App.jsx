@@ -6,26 +6,34 @@ import HomePage from "../pages/HomePage";
 import Footer from "../components/Footer";
 import Loginemp from "../pages/Loginemp";
 import PostJob from "../pages/PostJob";
-import {BrowserRouter, Routes, Route} from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import LandingPage from "../pages/LandingPage";
+import ProtectedRoute from "./ProtectedRoute";
 
 export default function App() {
   return (
     <>
       <BrowserRouter>
-        <Navbar/>
+        <Navbar />
         <Routes>
-          <Route path="/" element={<HomePage />} />
+          {/* Public Routes */}
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/home" element={<HomePage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/loginemp" element={<Loginemp />} />
           <Route path="/signup" element={<Signup />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/PostJob" element={<PostJob />} />
+          <Route path="/user/profile" element={<ProfilePage />} />
           <Route path="/recruiterProfile" element={<RecruiterProfile />} />
+
+          {/* Protected Route for PostJob */}
+          <Route
+            path="/PostJob"
+            element={<ProtectedRoute allowedRoles={['employer']} component={PostJob} />}
+          />
         </Routes>
-        <Footer/>
+        <Footer />
       </BrowserRouter>
     </>
-    
-  )
+  );
 }
