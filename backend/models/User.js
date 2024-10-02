@@ -22,7 +22,7 @@ const userSchema = new mongoose.Schema({
   },
   degreeType: {
     type: String,
-    enum: ["B.E", "B.Tech", "B.Sc", "B.Com"],
+    enum: ["B.E", "B.Tech", "B.Sc", "B.Com", ""],
     default: null,
   },
   stream: {
@@ -32,12 +32,13 @@ const userSchema = new mongoose.Schema({
       "Electronics",
       "Mechanical Engineering",
       "Civil Engineering",
+      ""
     ],
     default: null,
   },
   currentStatus: {
     type: String,
-    enum: ["Student", "Graduate", "Working Professional"],
+    enum: ["Student", "Graduate", "Working Professional", ""],
     default: null,
   },
   location: {

@@ -26,7 +26,7 @@ const PostJob = () => {
       const response = await api.post('/jobs', 
         { title, description, location, salary, type, companyName }, // Include companyName
         {
-          headers: { Authorization: `Bearer ${token}` } // Include token in the request
+          headers: { authorization: token } // Include token in the request
         }
       );
 

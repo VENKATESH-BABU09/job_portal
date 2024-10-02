@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import JobCard from '../components/JobCard';  // Adjust this path as necessary
+import JobCard from '../components/JobCard';
+
+import { api } from "../api/api.js";
+
 
 const JobListings = ({ filters }) => {
   const [jobs, setJobs] = useState([]);
@@ -17,7 +20,7 @@ const JobListings = ({ filters }) => {
     };
 
     fetchJobs();
-  }, [filters]);
+  }, [filters]);  
 
   return (
     <div>
