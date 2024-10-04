@@ -3,6 +3,8 @@ import FilterForm from '../components/FilterForm';
 import JobListings from './JobListings';
 import Footer from '../components/Footer';
 
+
+
 const HomePage = () => {
   const [filters, setFilters] = useState({ position: '', location: '', type: '' });
 

@@ -5,7 +5,7 @@ const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
 const cookieParser = require("cookie-parser");
-// const path = require('path');
+const bodyParser = require('body-parser');
 
 require("dotenv").config();
 const {
@@ -32,6 +32,7 @@ app.use(
   })
 );
 app.use(express.json());
+app.use(bodyParser.urlencoded({extended: true}));
 app.use(cookieParser());
 
 mongoose.connect(process.env.MONGO_URL).then(() => {
@@ -63,7 +64,7 @@ const authenticateEmployer = (req, res, next) => {
   // const newToken = req.cookies.auth_token;
   // console.log(newToken);
   // console.log(req.headers["authorization"]);
-  const token = req.headers["authorization"] // Bearer <token>
+  const token = req.headers["authorization"]; // Bearer <token>
   console.log("Token:", token);
 
   if (!token) {
@@ -486,10 +487,10 @@ app.get("/jobs", async (req, res) => {
     const { position, location, type } = req.query;
     const filter = {};
     if (position) {
-      filter.title = { $regex: new RegExp(position, 'i') };
+      filter.title = { $regex: new RegExp(position, "i") };
     }
     if (location) {
-      filter.location = { $regex: new RegExp(location, 'i') };
+      filter.location = { $regex: new RegExp(location, "i") };
     }
     if (type) {
       filter.type = type;
@@ -539,32 +540,34 @@ app.post(
   }
 );
 
-app.patch('/jobs/apply/:id', authenticateUser, async (req, res) => {
+app.patch("/jobs/apply/:id", authenticateUser, async (req, res) => {
   try {
     const job = await Job.findById(req.params.id);
     console.log("Job", job);
     if (!job) {
-      return res.status(404).json({ message: 'Job not found' });
+      return res.status(404).json({ message: "Job not found" });
     }
 
     const user = await User.findOne({ username: req.username });
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: "User not found" });
     }
 
     // Check if the user has already applied
     if (job.applicants.includes(user.username)) {
-      return res.status(400).json({ message: 'You have already applied for this job' });
+      return res
+        .status(400)
+        .json({ message: "You have already applied for this job" });
     }
 
     // Update the applicants array by adding the username
     job.applicants.push(user.username);
     await job.save();
 
-    res.status(200).json({ message: 'Successfully applied for the job' });
+    res.status(200).json({ message: "Successfully applied for the job" });
   } catch (error) {
-    console.error('Error applying for job:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error("Error applying for job:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 
@@ -629,6 +632,28 @@ app.delete(
 // POST - Apply for a job
 
 
+const verifyToken = (req, res, next) => {
+  const token = req.headers['authorization']?.split(' ')[1]; // Bearer TOKEN
+
+  if (!token) {
+    return res.status(403).json({ message: "No token provided" });
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    req.userId = decoded.username;
+    req.userRole = decoded.role;
+    next();
+  });
+};
+
+// Endpoint to verify token and return user role
+app.get('/api/verify-token', verifyToken, (req, res) => {
+  res.json({ role: req.userRole });
+});
+
 app.post("/user/register", async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -664,7 +689,7 @@ app.post("/user/login", async (req, res) => {
 
     // Generate JWT Token
     const token = jwt.sign(
-      { username: user.username,},
+      { username: user.username, role: "user" },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
@@ -744,11 +769,9 @@ function authenticateToken(req, res, next) {
 }
 
 // Assuming you have a User model with fields like username and email
-app.get("/user/profile", async (req, res) => {
+app.get("/user/profile", authenticateUser, async (req, res) => {
   try {
-    const token = req.headers.authorization.split(" ")[1]; // Bearer <token>
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findOne({ username: decoded.username });
+    const user = await User.findOne({ username: req.username });
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -756,8 +779,16 @@ app.get("/user/profile", async (req, res) => {
 
     res.status(200).json({
       username: user.username,
-      // email: user.email,
-      // Add more user details if needed
+      email: user.email,
+      highestEducation: user.highestEducation || "",
+      degreeType: user.degreeType || "",
+      stream: user.stream || "",
+      currentStatus: user.currentStatus || "",
+      location: user.location || "",
+      skills: user.skills || "",
+      experience: user.experience || "",
+      profilePicture: user.profilePicture || null, // Adjust if using file uploads
+      resume: user.resume || null,
     });
   } catch (error) {
     console.error("Error fetching user profile:", error);
@@ -777,7 +808,9 @@ app.get("/employer/profile", async (req, res) => {
 
     res.status(200).json({
       username: employer.username,
-      // companyName: employer.companyName,
+      companyName: employer.companyName,
+      email: employer.email,
+      companyDetails: employer.companyDetails
       // designation: employer.designation,
       // industry: employer.industry,
       // Add more employer details if needed
@@ -788,10 +821,13 @@ app.get("/employer/profile", async (req, res) => {
   }
 });
 
-app.patch("/employer/profile/update", async (req, res) => {
+app.patch("/employer/profile/update", authenticateEmployer, upload.none(), async (req, res) => {
   try {
-    const token = req.headers.authorization.split(" ")[1]; // Bearer <token>
+    const token = req.headers.authorization; // Bearer <token>
+    console.log(token);
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log(decoded);
+    // console.log(req.body.companyName);
     const employer = await Employer.findOneAndUpdate(
       { username: decoded.username },
       { ...req.body }, // Assuming req.body contains the updated profile data

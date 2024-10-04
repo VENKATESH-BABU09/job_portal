@@ -23,7 +23,7 @@ const JobListings = ({ filters }) => {
   }, [filters]);  
 
   return (
-    <div>
+    <div className='mr-60'>
       {jobs.map((job) => (
         <JobCard key={job._id} job={job} />
       ))}

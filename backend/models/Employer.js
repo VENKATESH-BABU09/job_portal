@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const employerSchema = new mongoose.Schema({
   username: { type: String, required: true },
-  email: { type: String, lowercase: true, required: true },
+  email: { type: String, lowercase: true,default:null},
   password: { type: String },
   companyName: { type: String, default: null },
   companyDetails: { type: String, default: null },

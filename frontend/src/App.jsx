@@ -11,6 +11,7 @@ import Navbar from "../components/Navbar";
 import LandingPage from "../pages/LandingPage";
 import ProtectedRoute from "./ProtectedRoute";
 
+
 export default function App() {
   return (
     <>
