@@ -97,7 +97,13 @@ export default function RecruiterProfile({ loggedInUsername }) {
 
   // Function to handle Posted Jobs button click
   const handlePostedJobs = () => {
-    navigate('/PostedJobs'); // Navigate to PostedJobs page
+    navigate('/recruiterhomepage'); // Navigate to PostedJobs page
+  };
+  const handleLogout = () => {
+    // Clear the token from localStorage
+    localStorage.removeItem('token');
+    // Redirect to the home page
+    navigate('/');
   };
 
   return (
@@ -232,6 +238,15 @@ export default function RecruiterProfile({ loggedInUsername }) {
             className="bg-blue-500 text-white px-4 py-2 rounded-lg"
           >
             Posted Jobs
+          </button>
+          
+        </div>
+        <div className="mt-8 text-center">
+          <button
+            onClick={handleLogout}
+            className="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 transition duration-300"
+          >
+            Logout
           </button>
         </div>
       </div>
