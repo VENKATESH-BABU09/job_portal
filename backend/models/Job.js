@@ -8,7 +8,7 @@ const jobSchema = new mongoose.Schema({
   type: { type: String, required: true, enum: ['Full-time', 'Part-time', 'Contract', 'Internship'] }, // Limit job types
   employer: { type: String, required: true, trim: true }, // Store employer's username instead of _id
   companyName: { type: String, required: true, trim: true }, // New field for company name
-  applicants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'JobSeeker' }],
+  applicants: [String],
   approved: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }, // Track when the job was last updated

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-// Function to fetch user data based on username
-const fetchUserData = async (username) => {
+// Function to fetch user data based on token
+const fetchUserData = async () => {
   try {
     const response = await axios.get(`http://localhost:4000/user/profile`, {
       headers: {
@@ -26,19 +26,28 @@ export default function ProfilePage({ loggedInUsername }) {
     currentStatus: "",
     location: "",
     skills: "",
-    experience: "",
+    experience: 0, // Default experience as a number
     resume: null,
     profilePicture: null,
   });
 
   useEffect(() => {
     const fetchData = async () => {
-      const userData = await fetchUserData(loggedInUsername); // Fetch data from server
+      const userData = await fetchUserData(); // Fetch data from server
       if (userData) {
         setProfileData((prevData) => ({
           ...prevData,
-          name: userData.username || loggedInUsername, // Set name from user data or fallback to loggedInUsername
-          email: userData.email || "", // Use email from user data
+          name: userData.username || loggedInUsername, // Set name from user data
+          email: userData.email || "",
+          highestEducation: userData.highestEducation || "",
+          degreeType: userData.degreeType || "",
+          stream: userData.stream || "",
+          currentStatus: userData.currentStatus || "",
+          location: userData.location || "",
+          skills: userData.skills || "",
+          experience: userData.experience || 0, // Ensure experience is set as number
+          resume: userData.resume || null,
+          profilePicture: userData.profilePicture || null,
         }));
       }
     };
@@ -48,9 +57,10 @@ export default function ProfilePage({ loggedInUsername }) {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    // Special handling for experience field to ensure it's a number
     setProfileData({
       ...profileData,
-      [name]: value,
+      [name]: name === 'experience' ? Number(value) : value,
     });
   };
 
@@ -65,13 +75,13 @@ export default function ProfilePage({ loggedInUsername }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     console.log("Updated Profile Data:", profileData);
-  
+
     try {
       const formData = new FormData();
       for (const key in profileData) {
         formData.append(key, profileData[key]);
       }
-  
+
       const response = await axios.patch('http://localhost:4000/profile/update', formData, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`, // Use token for authorization
@@ -86,7 +96,7 @@ export default function ProfilePage({ loggedInUsername }) {
       alert('Failed to update profile. Please try again.'); // Optional user feedback on error
     }
   };
-  
+
   return (
     <div className="bg-gray-100 min-h-screen py-8">
       <div className="container mx-auto">
@@ -97,7 +107,7 @@ export default function ProfilePage({ loggedInUsername }) {
             <div className="relative bg-blue-200 rounded-full h-24 w-24">
               {profileData.profilePicture ? (
                 <img
-                  src={URL.createObjectURL(profileData.profilePicture)}
+                  src={profileData.profilePicture} // Assuming a URL for profile picture
                   alt="Profile"
                   className="h-full w-full object-cover rounded-full"
                 />
@@ -133,6 +143,7 @@ export default function ProfilePage({ loggedInUsername }) {
         {/* Profile Form */}
         <form onSubmit={handleSubmit} className="bg-white p-8 rounded-lg shadow-md">
           <h3 className="text-xl font-semibold mb-4">Edit Your Profile</h3>
+
           {/* Email Field */}
           <div className="mb-4">
             <label className="block text-gray-700 font-semibold mb-2" htmlFor="email">
@@ -149,6 +160,8 @@ export default function ProfilePage({ loggedInUsername }) {
               required
             />
           </div>
+
+          {/* Highest Education */}
           <div className="mb-4">
             <label className="block text-gray-700 font-semibold mb-2" htmlFor="highestEducation">
               Highest Education
@@ -167,64 +180,67 @@ export default function ProfilePage({ loggedInUsername }) {
               <option value="Post-Graduate">Post-Graduate</option>
             </select>
           </div>
-          {/* Degree Type Field (conditionally shown if Degree is selected) */}
-          {profileData.highestEducation === "Degree" && (
-            <div className="mb-4">
-              <label className="block text-gray-700 font-semibold mb-2" htmlFor="degreeType">
-                Degree Type
-              </label>
-              <select
-                id="degreeType"
-                name="degreeType"
-                value={profileData.degreeType}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border rounded-lg"
-              >
-                <option value="">Select your degree type</option>
-                <option value="B.E">B.E</option>
-                <option value="B.Tech">B.Tech</option>
-                <option value="B.Sc">B.Sc</option>
-                <option value="B.Com">B.Com</option>
-              </select>
-            </div>
-          )}
-          {/* Stream Field (conditionally shown if Degree Type is selected) */}
-          {profileData.degreeType && (
-            <div className="mb-4">
-              <label className="block text-gray-700 font-semibold mb-2" htmlFor="stream">
-                Stream
-              </label>
-              <select
-                id="stream"
-                name="stream"
-                value={profileData.stream}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border rounded-lg"
-              >
-                <option value="">Select your stream</option>
-                <option value="Computer Science">Computer Science</option>
-                <option value="Electronics">Electronics</option>
-                <option value="Mechanical">Mechanical</option>
-                <option value="Civil">Civil</option>
-              </select>
-            </div>
-          )}
-          {/* Current Status Field */}
+
+          {/* Degree Type */}
+          <div className="mb-4">
+            <label className="block text-gray-700 font-semibold mb-2" htmlFor="degreeType">
+              Degree Type
+            </label>
+            <select
+              id="degreeType"
+              name="degreeType"
+              value={profileData.degreeType}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border rounded-lg"
+            >
+              <option value="">Select your degree type</option>
+              <option value="B.E">B.E</option>
+              <option value="B.Tech">B.Tech</option>
+              <option value="B.Sc">B.Sc</option>
+              <option value="B.Com">B.Com</option>
+            </select>
+          </div>
+
+          {/* Stream */}
+          <div className="mb-4">
+            <label className="block text-gray-700 font-semibold mb-2" htmlFor="stream">
+              Stream
+            </label>
+            <select
+              id="stream"
+              name="stream"
+              value={profileData.stream}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border rounded-lg"
+            >
+              <option value="">Select your stream</option>
+              <option value="Computer Science">Computer Science</option>
+              <option value="Electronics">Electronics</option>
+              <option value="Mechanical Engineering">Mechanical Engineering</option>
+              <option value="Civil Engineering">Civil Engineering</option>
+            </select>
+          </div>
+
+          {/* Current Status */}
           <div className="mb-4">
             <label className="block text-gray-700 font-semibold mb-2" htmlFor="currentStatus">
               Current Status
             </label>
-            <input
-              type="text"
+            <select
               id="currentStatus"
               name="currentStatus"
               value={profileData.currentStatus}
               onChange={handleChange}
               className="w-full px-3 py-2 border rounded-lg"
-              placeholder="Enter your current status"
-            />
+            >
+              <option value="">Select your current status</option>
+              <option value="Student">Student</option>
+              <option value="Graduate">Graduate</option>
+              <option value="Working Professional">Working Professional</option>
+            </select>
           </div>
-          {/* Location Field */}
+
+          {/* Location */}
           <div className="mb-4">
             <label className="block text-gray-700 font-semibold mb-2" htmlFor="location">
               Location
@@ -239,7 +255,8 @@ export default function ProfilePage({ loggedInUsername }) {
               placeholder="Enter your location"
             />
           </div>
-          {/* Skills Field */}
+
+          {/* Skills */}
           <div className="mb-4">
             <label className="block text-gray-700 font-semibold mb-2" htmlFor="skills">
               Skills
@@ -251,23 +268,27 @@ export default function ProfilePage({ loggedInUsername }) {
               value={profileData.skills}
               onChange={handleChange}
               className="w-full px-3 py-2 border rounded-lg"
-              placeholder="Enter your skills (comma separated)"
+              placeholder="Enter your skills, separated by commas"
             />
           </div>
-          {/* Experience Field */}
+
+          {/* Experience */}
           <div className="mb-4">
             <label className="block text-gray-700 font-semibold mb-2" htmlFor="experience">
-              Experience
+              Experience (Years)
             </label>
-            <textarea
+            <input
+              type="number"
               id="experience"
               name="experience"
               value={profileData.experience}
               onChange={handleChange}
               className="w-full px-3 py-2 border rounded-lg"
-              placeholder="Enter your work experience"
+              placeholder="Enter your experience in years"
+              min="0"
             />
           </div>
+
           {/* Resume Upload */}
           <div className="mb-4">
             <label className="block text-gray-700 font-semibold mb-2" htmlFor="resume">
@@ -278,15 +299,20 @@ export default function ProfilePage({ loggedInUsername }) {
               id="resume"
               name="resume"
               accept=".pdf,.doc,.docx"
-              onChange={handleFileChange}
               className="w-full px-3 py-2 border rounded-lg"
+              onChange={handleFileChange}
             />
-            {profileData.resume && <p>Uploaded Resume: {profileData.resume.name}</p>}
           </div>
+
           {/* Submit Button */}
-          <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded-lg">
-            Update Profile
-          </button>
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              className="bg-blue-500 text-white px-4 py-2 rounded-lg"
+            >
+              Update Profile
+            </button>
+          </div>
         </form>
       </div>
     </div>

@@ -5,7 +5,7 @@ const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
 const cookieParser = require("cookie-parser");
-// const path = require('path');
+const bodyParser = require('body-parser');
 
 require("dotenv").config();
 const {
@@ -32,6 +32,7 @@ app.use(
   })
 );
 app.use(express.json());
+app.use(bodyParser.urlencoded({extended: true}));
 app.use(cookieParser());
 
 mongoose.connect(process.env.MONGO_URL).then(() => {
@@ -64,7 +65,7 @@ const authenticateEmployer = (req, res, next) => {
   // console.log(newToken);
   // console.log(req.headers["authorization"]);
   const token = req.headers["authorization"]; // Bearer <token>
-  // console.log(token);
+  console.log("Token:", token);
 
   if (!token) {
     return res
@@ -104,7 +105,7 @@ app.get("/", authenticateEmployer, (req, res) => {
   // console.log("verified");
   const token = req.headers["authorization"];
   const roles = jwt.decode(token).role;
-  // console.log(roles);
+  console.log(roles);
   res.status(200).send({ isValid: true, role: roles });
 });
 
@@ -483,20 +484,21 @@ app.delete(
 
 app.get("/jobs", async (req, res) => {
   try {
-    const { location, type } = req.query;
-
+    const { position, location, type } = req.query;
     const filter = {};
+    if (position) {
+      filter.title = { $regex: new RegExp(position, "i") };
+    }
     if (location) {
-      filter.location = location;
+      filter.location = { $regex: new RegExp(location, "i") };
     }
     if (type) {
       filter.type = type;
     }
-
     const jobs = await Job.find(filter).populate("employer");
     res.status(200).json(jobs);
   } catch (err) {
-    res.status(500).json({ message: "Server Error", error: err });
+    res.status(500).json({ message: "Server Error", error: err.message });
   }
 });
 
@@ -538,20 +540,34 @@ app.post(
   }
 );
 
-app.patch("/jobs/:id", async (req, res) => {
+app.patch("/jobs/apply/:id", authenticateUser, async (req, res) => {
   try {
-    const updatedJob = await Job.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    });
-
-    if (!updatedJob) {
+    const job = await Job.findById(req.params.id);
+    console.log("Job", job);
+    if (!job) {
       return res.status(404).json({ message: "Job not found" });
     }
 
-    res.status(200).json(updatedJob);
-  } catch (err) {
-    res.status(500).json({ message: "Server Error", error: err });
+    const user = await User.findOne({ username: req.username });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Check if the user has already applied
+    if (job.applicants.includes(user.username)) {
+      return res
+        .status(400)
+        .json({ message: "You have already applied for this job" });
+    }
+
+    // Update the applicants array by adding the username
+    job.applicants.push(user.username);
+    await job.save();
+
+    res.status(200).json({ message: "Successfully applied for the job" });
+  } catch (error) {
+    console.error("Error applying for job:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 
@@ -614,29 +630,28 @@ app.delete(
 );
 
 // POST - Apply for a job
-app.post("/jobs/:id/apply", async (req, res) => {
-  const { userId } = req.body;
 
-  try {
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
 
-    const updatedJob = await Job.findByIdAndUpdate(
-      req.params.id,
-      { $addToSet: { applicants: userId } },
-      { new: true, runValidators: true }
-    ).populate("applicants");
+const verifyToken = (req, res, next) => {
+  const token = req.headers['authorization']?.split(' ')[1]; // Bearer TOKEN
 
-    if (!updatedJob) {
-      return res.status(404).json({ message: "Job not found" });
-    }
-
-    res.status(200).json(updatedJob);
-  } catch (err) {
-    res.status(500).json({ message: "Server Error", error: err });
+  if (!token) {
+    return res.status(403).json({ message: "No token provided" });
   }
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    req.userId = decoded.username;
+    req.userRole = decoded.role;
+    next();
+  });
+};
+
+// Endpoint to verify token and return user role
+app.get('/api/verify-token', verifyToken, (req, res) => {
+  res.json({ role: req.userRole });
 });
 
 app.post("/user/register", async (req, res) => {
@@ -674,7 +689,7 @@ app.post("/user/login", async (req, res) => {
 
     // Generate JWT Token
     const token = jwt.sign(
-      { username: user.username },
+      { username: user.username, role: "user" },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
@@ -754,11 +769,9 @@ function authenticateToken(req, res, next) {
 }
 
 // Assuming you have a User model with fields like username and email
-app.get("/user/profile", async (req, res) => {
+app.get("/user/profile", authenticateUser, async (req, res) => {
   try {
-    const token = req.headers.authorization.split(" ")[1]; // Bearer <token>
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findOne({ username: decoded.username });
+    const user = await User.findOne({ username: req.username });
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -766,11 +779,68 @@ app.get("/user/profile", async (req, res) => {
 
     res.status(200).json({
       username: user.username,
-      // email: user.email,
-      // Add more user details if needed
+      email: user.email,
+      highestEducation: user.highestEducation || "",
+      degreeType: user.degreeType || "",
+      stream: user.stream || "",
+      currentStatus: user.currentStatus || "",
+      location: user.location || "",
+      skills: user.skills || "",
+      experience: user.experience || "",
+      profilePicture: user.profilePicture || null, // Adjust if using file uploads
+      resume: user.resume || null,
     });
   } catch (error) {
     console.error("Error fetching user profile:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.get("/employer/profile", async (req, res) => {
+  try {
+    const token = req.headers.authorization.split(" ")[1]; // Bearer <token>
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const employer = await Employer.findOne({ username: decoded.username });
+
+    if (!employer) {
+      return res.status(404).json({ message: "Employer not found" });
+    }
+
+    res.status(200).json({
+      username: employer.username,
+      companyName: employer.companyName,
+      email: employer.email,
+      companyDetails: employer.companyDetails
+      // designation: employer.designation,
+      // industry: employer.industry,
+      // Add more employer details if needed
+    });
+  } catch (error) {
+    console.error("Error fetching employer profile:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.patch("/employer/profile/update", authenticateEmployer, upload.none(), async (req, res) => {
+  try {
+    const token = req.headers.authorization; // Bearer <token>
+    console.log(token);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log(decoded);
+    // console.log(req.body.companyName);
+    const employer = await Employer.findOneAndUpdate(
+      { username: decoded.username },
+      { ...req.body }, // Assuming req.body contains the updated profile data
+      { new: true } // Return the updated document
+    );
+
+    if (!employer) {
+      return res.status(404).json({ message: "Employer not found" });
+    }
+
+    res.status(200).json({ message: "Profile updated successfully", employer });
+  } catch (error) {
+    console.error("Error updating employer profile:", error);
     res.status(500).json({ message: "Server error" });
   }
 });
